@@ -1,5 +1,10 @@
-/* CampusConnect - Pure HTML/CSS/JS SPA
-   - Hash router for pages
+/* CampusConnect - Production-Ready SPA
+   - Enhanced hash router with proper state management
+   - Theme toggle with localStorage persistence
+   - Comprehensive form validation
+   - Accessibility features (ARIA, keyboard navigation)
+   - Mobile-responsive navigation
+   - Loading states and micro-interactions
    - LocalStorage auth (JWT placeholder)
    - Mock events with CRUD (Organizer Dashboard)
    - RSVP and Profile pages
@@ -12,19 +17,23 @@
 ------------------------------- */
 function $(sel, scope = document) { return scope.querySelector(sel); }
 function $all(sel, scope = document) { return Array.from(scope.querySelectorAll(sel)); }
+
 function formatDateISOToReadable(iso) {
     try {
         const d = new Date(iso);
         return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     } catch { return iso; }
 }
+
 function toDateTimeLocalValue(d) {
     const pad = n => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
 function uid() {
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
+
 function downloadFile(filename, content, mime = 'text/plain;charset=utf-8') {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -35,6 +44,213 @@ function downloadFile(filename, content, mime = 'text/plain;charset=utf-8') {
     a.remove();
     URL.revokeObjectURL(url);
 }
+
+function showLoading(show = true) {
+    const indicator = $('#loading-indicator');
+    if (indicator) {
+        indicator.classList.toggle('hidden', !show);
+    }
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function throttle(func, limit) {
+    let inThrottle;
+    return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+/* -------------------------------
+   Theme Management
+------------------------------- */
+const Theme = {
+    init() {
+        const savedTheme = localStorage.getItem('campusconnect-theme') || 'light';
+        this.setTheme(savedTheme);
+        this.bindEvents();
+    },
+    
+    setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        const toggle = $('#theme-toggle .theme-icon');
+        if (toggle) {
+            toggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        localStorage.setItem('campusconnect-theme', theme);
+    },
+    
+    toggle() {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        this.setTheme(newTheme);
+    },
+    
+    bindEvents() {
+        const toggle = $('#theme-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', () => this.toggle());
+        }
+    }
+};
+
+/* -------------------------------
+   Mobile Navigation
+------------------------------- */
+const MobileNav = {
+    init() {
+        this.bindEvents();
+    },
+    
+    bindEvents() {
+        const toggle = $('#mobile-menu-toggle');
+        const navLinks = $('.nav-links');
+        
+        if (toggle && navLinks) {
+            toggle.addEventListener('click', () => this.toggle());
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!toggle.contains(e.target) && !navLinks.contains(e.target)) {
+                    this.close();
+                }
+            });
+            
+            // Close menu on escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    this.close();
+                }
+            });
+        }
+    },
+    
+    toggle() {
+        const toggle = $('#mobile-menu-toggle');
+        const navLinks = $('.nav-links');
+        
+        if (toggle && navLinks) {
+            const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', !isOpen);
+            navLinks.classList.toggle('mobile-open', !isOpen);
+        }
+    },
+    
+    close() {
+        const toggle = $('#mobile-menu-toggle');
+        const navLinks = $('.nav-links');
+        
+        if (toggle && navLinks) {
+            toggle.setAttribute('aria-expanded', 'false');
+            navLinks.classList.remove('mobile-open');
+        }
+    }
+};
+
+/* -------------------------------
+   Form Validation
+------------------------------- */
+const FormValidation = {
+    rules: {
+        required: (value) => value.trim().length > 0,
+        email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+        minLength: (value, min) => value.length >= min,
+        maxLength: (value, max) => value.length <= max,
+        date: (value) => new Date(value) > new Date(),
+        url: (value) => {
+            if (!value) return true; // Optional field
+            try {
+                new URL(value);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+    },
+    
+    validate(form) {
+        const errors = {};
+        const inputs = form.querySelectorAll('input, select, textarea');
+        
+        inputs.forEach(input => {
+            const value = input.value;
+            const rules = this.getRules(input);
+            
+            for (const [ruleName, ruleValue] of Object.entries(rules)) {
+                if (this.rules[ruleName]) {
+                    const isValid = this.rules[ruleName](value, ruleValue);
+                    if (!isValid) {
+                        errors[input.name] = this.getErrorMessage(ruleName, ruleValue);
+                        break;
+                    }
+                }
+            }
+        });
+        
+        this.showErrors(form, errors);
+        return Object.keys(errors).length === 0;
+    },
+    
+    getRules(input) {
+        const rules = {};
+        if (input.hasAttribute('required')) rules.required = true;
+        if (input.type === 'email') rules.email = true;
+        if (input.hasAttribute('minlength')) rules.minLength = parseInt(input.getAttribute('minlength'));
+        if (input.hasAttribute('maxlength')) rules.maxLength = parseInt(input.getAttribute('maxlength'));
+        if (input.type === 'datetime-local') rules.date = true;
+        if (input.type === 'url') rules.url = true;
+        return rules;
+    },
+    
+    getErrorMessage(ruleName, ruleValue) {
+        const messages = {
+            required: 'This field is required',
+            email: 'Please enter a valid email address',
+            minLength: `Must be at least ${ruleValue} characters`,
+            maxLength: `Must be no more than ${ruleValue} characters`,
+            date: 'Date must be in the future',
+            url: 'Please enter a valid URL'
+        };
+        return messages[ruleName] || 'Invalid input';
+    },
+    
+    showErrors(form, errors) {
+        // Clear previous errors
+        form.querySelectorAll('.error-message').forEach(el => el.remove());
+        form.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+        
+        // Show new errors
+        Object.entries(errors).forEach(([fieldName, message]) => {
+            const input = form.querySelector(`[name="${fieldName}"]`);
+            if (input) {
+                input.classList.add('error');
+                const errorEl = document.createElement('div');
+                errorEl.className = 'error-message';
+                errorEl.textContent = message;
+                errorEl.style.color = 'var(--color-danger)';
+                errorEl.style.fontSize = 'var(--font-size-sm)';
+                errorEl.style.marginTop = 'var(--space-1)';
+                input.parentNode.appendChild(errorEl);
+            }
+        });
+    }
+};
 
 /* -------------------------------
    Local Storage Keys and Store
@@ -258,23 +474,32 @@ function renderNavbar() {
 ------------------------------- */
 function EventCard(event) {
     const start = new Date(event.date);
+    const end = event.endDate ? new Date(event.endDate) : null;
     const bg = (event.image || '').trim() ? `style="background-image:url('${event.image}'); background-size:cover; background-position:center;"` : '';
     const cat = (event.category || '').trim();
     const catClass = categoryClass(cat);
+    const isUpcoming = start > new Date();
+    
     return `
-        <article class="card">
-            <div class="img" ${bg}></div>
+        <article class="card" role="listitem">
+            <div class="img" ${bg} aria-hidden="true"></div>
             <div class="card-inner">
-                <div class="card-title">${event.title}</div>
+                <h3 class="card-title">
+                    <a href="#/event/${event.id}" aria-label="View details for ${event.title}">${event.title}</a>
+                </h3>
                 <div class="card-meta">
-                    <span class="badge">📅 ${start.toLocaleString()}</span>
-                    <span class="badge">📍 ${event.location}</span>
-                    <span class="badge">🏷️ ${event.host}</span>
+                    <span class="badge" aria-label="Event date: ${start.toLocaleDateString()} at ${start.toLocaleTimeString()}">
+                        📅 ${start.toLocaleDateString()} ${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
+                    <span class="badge" aria-label="Location: ${event.location}">📍 ${event.location}</span>
+                    <span class="badge" aria-label="Hosted by: ${event.host}">🏷️ ${event.host}</span>
                 </div>
                 <p class="event-desc">${event.description}</p>
                 <div class="row">
-                    <a class="btn btn-primary" href="#/event/${event.id}">View Details</a>
-                    <span class="right pill ${catClass}">${cat || 'General'}</span>
+                    <a class="btn btn-primary" href="#/event/${event.id}" aria-label="View full details for ${event.title}">
+                        ${isUpcoming ? 'View Details' : 'View Details'}
+                    </a>
+                    <span class="right pill ${catClass}" aria-label="Category: ${cat || 'General'}">${cat || 'General'}</span>
                 </div>
             </div>
         </article>
@@ -357,15 +582,23 @@ function generateICS(event) {
 }
 
 /* -------------------------------
-   Router
+   Enhanced Router
 ------------------------------- */
 const Router = {
     routes: [],
-    add(path, handler) { this.routes.push({ path, handler }); return this; },
+    currentRoute: null,
+    history: [],
+    
+    add(path, handler) { 
+        this.routes.push({ path, handler }); 
+        return this; 
+    },
+    
     parse(hash) {
         const h = hash.replace(/^#/, '') || '/';
         return h;
     },
+    
     match(path) {
         for (const r of this.routes) {
             const params = {};
@@ -378,22 +611,94 @@ const Router = {
                     params[rSeg[i].slice(1)] = decodeURIComponent(pSeg[i]);
                 } else if (rSeg[i] !== pSeg[i]) { ok = false; break; }
             }
-            if (ok) return { handler: r.handler, params };
+            if (ok) return { handler: r.handler, params, path: r.path };
         }
         return null;
     },
-    render() {
+    
+    async render() {
         const path = this.parse(location.hash);
         const match = this.match(path);
-        if (match) match.handler(match.params);
-        else this.go('#/');
+        
+        // Update navigation state
+        this.updateNavigation(path);
+        
+        if (match) {
+            this.currentRoute = match;
+            showLoading(true);
+            
+            try {
+                // Focus management for accessibility
+                const mainContent = $('#main-content');
+                if (mainContent) {
+                    mainContent.focus();
+                }
+                
+                await match.handler(match.params);
+            } catch (error) {
+                console.error('Route error:', error);
+                this.showError('Failed to load page');
+            } finally {
+                showLoading(false);
+            }
+        } else {
+            this.go('#/');
+        }
     },
-    go(href) { location.hash = href; }
+    
+    go(href) { 
+        location.hash = href; 
+    },
+    
+    updateNavigation(currentPath) {
+        // Update active navigation links
+        $all('.nav-links a').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href === `#${currentPath}` || (currentPath === '/' && href === '#/')) {
+                link.setAttribute('aria-current', 'page');
+            } else {
+                link.removeAttribute('aria-current');
+            }
+        });
+    },
+    
+    showError(message) {
+        const app = $('#app');
+        if (app) {
+            app.innerHTML = `
+                <section class="container">
+                    <div class="alert">
+                        <h2>Error</h2>
+                        <p>${message}</p>
+                        <a href="#/" class="btn btn-primary">Go Home</a>
+                    </div>
+                </section>
+            `;
+        }
+    }
 };
 
+// Enhanced hash change handling
 window.addEventListener('hashchange', () => {
+    MobileNav.close();
     renderNavbar();
     Router.render();
+});
+
+// Keyboard navigation support
+document.addEventListener('keydown', (e) => {
+    // Alt + Left/Right for navigation
+    if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        const currentPath = Router.parse(location.hash);
+        const currentIndex = Router.routes.findIndex(r => r.path === currentPath);
+        
+        if (e.key === 'ArrowLeft' && currentIndex > 0) {
+            Router.go(`#${Router.routes[currentIndex - 1].path}`);
+        } else if (e.key === 'ArrowRight' && currentIndex < Router.routes.length - 1) {
+            Router.go(`#${Router.routes[currentIndex + 1].path}`);
+        }
+    }
 });
 
 /* -------------------------------
@@ -404,40 +709,97 @@ function HomePage() {
     const events = Events.all();
 
     app.innerHTML = `
-        <section class="container">
-            <div class="hero">
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="container">
                 <div class="page-header">
                     <div>
-                        <h1>Find your next campus event</h1>
-                        <div class="subtitle mt-2">Discover featured and upcoming events across campus.</div>
+                        <h1 id="hero-title">Discover Campus Events</h1>
+                        <div class="subtitle mt-2">Find and join amazing events happening across campus. Connect with your community and explore new opportunities.</div>
+                        <div class="row mt-4">
+                            <a href="#/dashboard" class="btn btn-primary">Create Event</a>
+                            <a href="#/profile" class="btn">My Events</a>
+                        </div>
                     </div>
-                </div>
-                <div class="searchbar mt-3">
-                    <input class="input" id="searchText" placeholder="Search by title, description, host...">
-                    <select class="select" id="hostFilter">
-                        <option value="">All hosts</option>
-                        ${Array.from(new Set(events.map(e => e.host))).map(h => `<option value="${h}">${h}</option>`).join('')}
-                    </select>
-                    <select class="select" id="categoryFilter">
-                        <option value="">All categories</option>
-                        ${Array.from(new Set(events.map(e => e.category).filter(Boolean))).map(c => `<option value="${c}">${c}</option>`).join('')}
-                    </select>
-                    <input class="input" id="dateFrom" type="date" placeholder="From">
-                    <input class="input" id="dateTo" type="date" placeholder="To">
-                    <select class="select" id="sortBy">
-                        <option value="dateAsc">Sort: Date ↑</option>
-                        <option value="dateDesc">Sort: Date ↓</option>
-                        <option value="titleAsc">Sort: Title A–Z</option>
-                        <option value="titleDesc">Sort: Title Z–A</option>
-                    </select>
-                    <button class="btn" id="searchBtn">Search</button>
-                    <button class="btn btn-ghost" id="clearBtn">Clear</button>
                 </div>
             </div>
         </section>
-        <section class="container">
-            <div id="eventsGrid" class="grid grid-3"></div>
-            <div id="emptyState" class="alert mt-3" style="display:none;">No events match your filters. Try adjusting search or dates.</div>
+        
+        <section class="container" aria-labelledby="search-title">
+            <div class="page-header">
+                <h2 id="search-title">Search Events</h2>
+                <div class="subtitle">Filter and discover events that interest you</div>
+            </div>
+            
+            <div class="card">
+                <div class="card-inner">
+                    <form id="searchForm" class="searchbar" role="search" aria-label="Search events">
+                        <div class="form-row form-row-2">
+                            <div>
+                                <label for="searchText">Search</label>
+                                <input class="input" id="searchText" name="search" placeholder="Search by title, description, host..." aria-describedby="search-help">
+                                <div id="search-help" class="sr-only">Enter keywords to search through event titles, descriptions, hosts, and locations</div>
+                            </div>
+                            <div>
+                                <label for="hostFilter">Host</label>
+                                <select class="select" id="hostFilter" name="host">
+                                    <option value="">All hosts</option>
+                                    ${Array.from(new Set(events.map(e => e.host))).map(h => `<option value="${h}">${h}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row form-row-3">
+                            <div>
+                                <label for="categoryFilter">Category</label>
+                                <select class="select" id="categoryFilter" name="category">
+                                    <option value="">All categories</option>
+                                    ${Array.from(new Set(events.map(e => e.category).filter(Boolean))).map(c => `<option value="${c}">${c}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="dateFrom">From Date</label>
+                                <input class="input" id="dateFrom" name="dateFrom" type="date">
+                            </div>
+                            <div>
+                                <label for="dateTo">To Date</label>
+                                <input class="input" id="dateTo" name="dateTo" type="date">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="row">
+                                <div>
+                                    <label for="sortBy">Sort By</label>
+                                    <select class="select" id="sortBy" name="sort">
+                                        <option value="dateAsc">Date (Earliest First)</option>
+                                        <option value="dateDesc">Date (Latest First)</option>
+                                        <option value="titleAsc">Title (A–Z)</option>
+                                        <option value="titleDesc">Title (Z–A)</option>
+                                    </select>
+                                </div>
+                                <div class="right">
+                                    <button type="button" class="btn btn-ghost" id="clearBtn">Clear Filters</button>
+                                    <button type="submit" class="btn btn-primary" id="searchBtn">Search</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+        
+        <section class="container" aria-labelledby="events-title">
+            <div class="page-header">
+                <h2 id="events-title">Upcoming Events</h2>
+                <div class="subtitle">${events.length} events found</div>
+            </div>
+            
+            <div id="eventsGrid" class="grid grid-3" role="list" aria-label="List of campus events"></div>
+            <div id="emptyState" class="alert mt-6" style="display:none;" role="status">
+                <h3>No events found</h3>
+                <p>No events match your current filters. Try adjusting your search criteria or clearing the filters.</p>
+                <button class="btn btn-primary" onclick="document.getElementById('clearBtn').click()">Clear Filters</button>
+            </div>
         </section>
     `;
 
@@ -584,13 +946,24 @@ function LoginPage() {
 
     $('#loginForm').addEventListener('submit', (e) => {
         e.preventDefault();
+        
+        if (!FormValidation.validate(e.target)) {
+            return;
+        }
+        
         const data = Object.fromEntries(new FormData(e.target).entries());
         try {
             Auth.login(data.email, data.password);
             renderNavbar();
             Router.go('#/');
         } catch (err) {
-            alert(err.message || 'Login failed');
+            // Show error in form
+            const errorEl = document.createElement('div');
+            errorEl.className = 'error-message';
+            errorEl.textContent = err.message || 'Login failed';
+            errorEl.style.color = 'var(--color-danger)';
+            errorEl.style.marginTop = 'var(--space-2)';
+            e.target.appendChild(errorEl);
         }
     });
 }
@@ -639,14 +1012,32 @@ function SignupPage() {
 
     $('#signupForm').addEventListener('submit', (e) => {
         e.preventDefault();
+        
+        if (!FormValidation.validate(e.target)) {
+            return;
+        }
+        
         const fd = new FormData(e.target);
         const data = Object.fromEntries(fd.entries());
+        
+        // Additional validation for signup
+        if (data.password.length < 6) {
+            FormValidation.showErrors(e.target, { password: 'Password must be at least 6 characters' });
+            return;
+        }
+        
         try {
             Auth.signup(data.name, data.email, data.password, data.isOrganizer === 'true');
             renderNavbar();
             Router.go('#/');
         } catch (err) {
-            alert(err.message || 'Signup failed');
+            // Show error in form
+            const errorEl = document.createElement('div');
+            errorEl.className = 'error-message';
+            errorEl.textContent = err.message || 'Signup failed';
+            errorEl.style.color = 'var(--color-danger)';
+            errorEl.style.marginTop = 'var(--space-2)';
+            e.target.appendChild(errorEl);
         }
     });
 }
@@ -788,21 +1179,42 @@ function DashboardPage() {
             confirmText: existing ? 'Save' : 'Create',
             onConfirm: () => {
                 const f = document.getElementById('eventForm');
+                
+                if (!FormValidation.validate(f)) {
+                    return;
+                }
+                
                 const fd = new FormData(f);
                 const data = Object.fromEntries(fd.entries());
+                
+                // Additional validation for event dates
+                const startDate = new Date(data.date);
+                const endDate = new Date(data.endDate);
+                
+                if (endDate <= startDate) {
+                    FormValidation.showErrors(f, { endDate: 'End date must be after start date' });
+                    return;
+                }
+                
                 const payload = {
                     title: data.title.trim(),
                     description: data.description.trim(),
-                    date: new Date(data.date).toISOString(),
-                    endDate: new Date(data.endDate).toISOString(),
+                    date: startDate.toISOString(),
+                    endDate: endDate.toISOString(),
                     location: data.location.trim(),
                     host: data.host.trim(),
                     image: data.image.trim(),
                     category: (data.category || '').trim()
                 };
-                if (existing) Events.update(existing.id, payload);
-                else Events.create(payload);
-                renderRows();
+                
+                try {
+                    if (existing) Events.update(existing.id, payload);
+                    else Events.create(payload);
+                    renderRows();
+                } catch (err) {
+                    console.error('Event save error:', err);
+                    alert('Failed to save event. Please try again.');
+                }
             }
         });
     }
@@ -852,9 +1264,22 @@ Router
    Startup
 ------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('year').textContent = new Date().getFullYear();
+    // Initialize core systems
+    Theme.init();
+    MobileNav.init();
+    
+    // Set copyright year
+    const yearEl = document.getElementById('year');
+    if (yearEl) {
+        yearEl.textContent = new Date().getFullYear();
+    }
+    
+    // Initialize navigation and routing
     renderNavbar();
     Router.render();
+    
+    // Add keyboard shortcuts info
+    console.log('CampusConnect loaded! Keyboard shortcuts: Alt+Left/Right for navigation');
 });
 
 /* -------------------------------

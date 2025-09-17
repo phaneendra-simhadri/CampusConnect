@@ -3,50 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CampusConnect - Centralized Campus Events</title>
+    <title>CampusConnect - Centralized Campus Events Platform</title>
+    <meta name="description" content="CampusConnect: Discover, manage, and track campus events in one centralized platform. Connect students, organizers, and administrators for seamless event experiences.">
+    <meta name="keywords" content="campus events, student events, university events, event management, RSVP, campus connect">
+    <meta name="author" content="CampusConnect Team">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://campusconnect.edu/">
+    <meta property="og:title" content="CampusConnect - Centralized Campus Events Platform">
+    <meta property="og:description" content="Discover, manage, and track campus events in one centralized platform.">
+    <meta property="og:image" content="https://campusconnect.edu/og-image.jpg">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://campusconnect.edu/">
+    <meta property="twitter:title" content="CampusConnect - Centralized Campus Events Platform">
+    <meta property="twitter:description" content="Discover, manage, and track campus events in one centralized platform.">
+    <meta property="twitter:image" content="https://campusconnect.edu/og-image.jpg">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" href="favicon.png">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
     <link rel="stylesheet" href="style.css">
-    <meta name="description" content="CampusConnect: Discover and manage campus events in one place.">
+    
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "CampusConnect",
+        "description": "Centralized platform for campus events management",
+        "url": "https://campusconnect.edu",
+        "logo": "https://campusconnect.edu/logo.svg",
+        "sameAs": [
+            "https://twitter.com/campusconnect",
+            "https://facebook.com/campusconnect"
+        ],
+        "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer service",
+            "email": "support@campusconnect.edu"
+        }
+    }
+    </script>
 </head>
 <body>
-    <header class="navbar">
-        <div class="nav-left">
-            <a href="#/" class="brand">CampusConnect</a>
-            <nav class="nav-links">
-                <a href="#/">Home</a>
-                <a href="#/dashboard" id="nav-dashboard" class="hidden">Organizer Dashboard</a>
-                <a href="#/profile" id="nav-profile" class="hidden">Profile</a>
-            </nav>
+    <!-- Skip to content link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <!-- Theme toggle button -->
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark/light theme" title="Toggle theme">
+        <span class="theme-icon" aria-hidden="true">🌙</span>
+    </button>
+    
+    <header class="navbar" role="banner">
+        <div class="nav-container">
+            <div class="nav-left">
+                <a href="#/" class="brand" aria-label="CampusConnect - Go to Home">CampusConnect</a>
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+                    <span class="hamburger" aria-hidden="true"></span>
+                </button>
+                <nav class="nav-links" role="navigation" aria-label="Main navigation">
+                    <a href="#/" aria-current="page">Home</a>
+                    <a href="#/dashboard" id="nav-dashboard" class="hidden">Organizer Dashboard</a>
+                    <a href="#/profile" id="nav-profile" class="hidden">Profile</a>
+                </nav>
+            </div>
+            <div class="nav-right" id="nav-auth" role="complementary" aria-label="User authentication"></div>
         </div>
-        <div class="nav-right" id="nav-auth"></div>
     </header>
 
-    <main id="app"></main>
+    <main id="app" role="main" aria-label="Main content">
+        <div id="main-content" tabindex="-1"></div>
+    </main>
 
-    <footer class="footer">
-        <div>
-            <span>&copy; <span id="year"></span> CampusConnect</span>
-            <span class="dot">•</span>
-            <a href="#/">Home</a>
-            <span class="dot">•</span>
-            <a href="#/dashboard">Organizer</a>
-            <span class="dot">•</span>
-            <a href="#/profile">Profile</a>
+    <footer class="footer" role="contentinfo">
+        <div class="footer-content">
+            <div class="footer-links">
+                <span>&copy; <span id="year"></span> CampusConnect</span>
+                <span class="dot" aria-hidden="true">•</span>
+                <a href="#/">Home</a>
+                <span class="dot" aria-hidden="true">•</span>
+                <a href="#/dashboard">Organizer</a>
+                <span class="dot" aria-hidden="true">•</span>
+                <a href="#/profile">Profile</a>
+            </div>
+            <div class="footer-note">
+                Demo only: data stored locally. Replace with API calls when backend is ready.
+            </div>
         </div>
-        <div>Demo only: data stored locally. Replace with API calls when backend is ready.</div>
     </footer>
 
-    <div id="modal-root" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <!-- Modal system -->
+    <div id="modal-root" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-body">
         <div class="modal">
             <div class="modal-header">
                 <h3 id="modal-title">Confirm</h3>
-                <button class="icon-btn" id="modal-close" aria-label="Close">✕</button>
+                <button class="icon-btn" id="modal-close" aria-label="Close modal">✕</button>
             </div>
             <div class="modal-body" id="modal-body"></div>
             <div class="modal-actions" id="modal-actions"></div>
         </div>
     </div>
 
+    <!-- Loading indicator -->
+    <div id="loading-indicator" class="loading-indicator hidden" role="status" aria-label="Loading">
+        <div class="spinner" aria-hidden="true"></div>
+        <span>Loading...</span>
+    </div>
+
     <script src="script.js"></script>
-    
 </body>
 </html>
